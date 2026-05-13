@@ -3,10 +3,29 @@ services:
     image: postgres
     environment:  
       POSTGRES_PASSWORD: postgrespw
+      POSTGRES_DB: auctions
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql
+  mongodb:
+    image: mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=mongopw
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: carsties
+      RABBITMQ_DEFAULT_PASS: carstiespw
+    ports:
+      - "5672:5672"
+      - "15672:15672"
 
 volumes:
-  pgdata:
+  postgres_data:
+  mongodb_data:

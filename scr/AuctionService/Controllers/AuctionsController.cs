@@ -2,8 +2,12 @@ using AuctionService.Data;
 using AuctionService.DTOs;
 using AuctionService.Entities;
 using AutoMapper;
+using AutoMapper.QueryableExtensions;
+using Contracts;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace   AuctionService.Controllers;
 
@@ -13,24 +17,38 @@ public class AuctionsController : ControllerBase
 {
     private readonly AuctionDbContext _context;
     private readonly IMapper _mapper;
-    public AuctionsController(AuctionDbContext context, IMapper mapper)
+    private readonly IPublishEndpoint _publishEndpoint;
+
+    public AuctionsController(
+        AuctionDbContext context, 
+        IMapper mapper, 
+        IPublishEndpoint publishEndpoint)
     {
         this._context = context;
         this._mapper = mapper;
+        _publishEndpoint = publishEndpoint;
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<AuctionDto>>> GetAllAuctions()
+    public async Task<ActionResult<List<AuctionDto>>> GetAllAuctions([FromQuery] string date)
     {
-        var auctions = await _context.Auctions
-        .Include(a => a.Item)
-        .OrderBy(x=>x.Item.Make)
-        .ToListAsync();
+        var query  =_context.Auctions.OrderBy(x=>x.Item.Make).AsQueryable();
 
-        return _mapper.Map<List<AuctionDto>>(auctions);
+        if(!string.IsNullOrEmpty(date))
+        {
+            if (!DateTime.TryParse(date, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsedDate))
+            {
+                return BadRequest("Invalid date query parameter. Use ISO-8601 format.");
+            }
+
+            var updatedAfter = parsedDate.ToUniversalTime();
+            query = query.Where(x => x.UpdatedAt > updatedAfter);
+        }
+
+        return await query.ProjectTo<AuctionDto>(_mapper.ConfigurationProvider).ToListAsync();
     }
 
-    [HttpGet("{id}")]
+    [HttpGet("{id:guid}")]
     public async Task<ActionResult<AuctionDto>> GetAuctionById(Guid id)
     {
         var auction = await _context.Auctions
@@ -51,7 +69,8 @@ public class AuctionsController : ControllerBase
         var auction = _mapper.Map<Auction>(auctionDto);
         auction.Seller ="test";
         _context.Auctions.Add(auction);
-     
+        var newlyCreatedAuction = _mapper.Map<AuctionDto>(auction);
+        await _publishEndpoint.Publish(_mapper.Map<AuctionCreated>(newlyCreatedAuction));
 
         var result =    await _context.SaveChangesAsync() > 0;
 
@@ -59,11 +78,11 @@ public class AuctionsController : ControllerBase
         {
             return BadRequest("Failed to create auction");
         }
-
+     
         return CreatedAtAction(
             nameof(GetAuctionById), 
             new { id = auction.Id },
-             _mapper.Map<AuctionDto>(auction));
+            newlyCreatedAuction);
     }
 
     [HttpPut("{id}")]

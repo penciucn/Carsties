@@ -1,10 +1,10 @@
-namespace AuctionService.DTOs;
+using MongoDB.Entities;
 
-public class AuctionDto
+namespace SearchService
 {
-     public Guid Id  { get;set;}
-
-    public int ReservePrice { get; set; } 
+    public class Item: Entity
+    {
+     public int ReservePrice { get; set; } 
 
     public string Seller { get; set; }
 
@@ -32,5 +32,5 @@ public class AuctionDto
 
     public string  ImageUrl { get; set; }
 
-    public int Year { get;  set; }
+    }
 }

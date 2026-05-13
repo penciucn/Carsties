@@ -1,8 +1,13 @@
-namespace AuctionService.DTOs;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
-public class AuctionDto
+namespace Contracts
 {
-     public Guid Id  { get;set;}
+    public class AuctionCreated
+    {
+    public Guid Id  { get;set;}
 
     public int ReservePrice { get; set; } 
 
@@ -33,4 +38,6 @@ public class AuctionDto
     public string  ImageUrl { get; set; }
 
     public int Year { get;  set; }
+        
+    }
 }
